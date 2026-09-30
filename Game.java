@@ -279,6 +279,9 @@ public class Game {
 		if (handOver || p == null) {
 			return;
 		}
+		if (action < FOLD || action > CUSTOM) {
+			throw new IllegalArgumentException("unknown action " + action);
+		}
 		if (action == FOLD) {
 			p.folded = true;
 		} else if (action == CHECK_CALL) {
