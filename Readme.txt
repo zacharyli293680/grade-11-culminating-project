@@ -33,6 +33,7 @@ How to compile and run (from this folder):
 - javac -d out *.java
 - java -cp out Poker
 - Tests: javac -d out *.java tests/PokerTests.java   then   java -cp out PokerTests
+- The game looks for its images and sounds in the working folder, then next to the compiled classes and one folder up, so it can also be started from elsewhere
 
 Files:
 - Poker.java          screens, drawing, mouse and keyboard input, turn timer

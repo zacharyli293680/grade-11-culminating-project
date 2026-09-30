@@ -11,6 +11,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.FontMetrics;
 import java.awt.Image;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -19,6 +20,7 @@ import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -81,9 +83,35 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 		soundEffect = loadClip("end.wav");
 	}
 
+	// Finds an image or sound file. Looks in the working directory first, then next to the
+	// compiled classes and one folder above them (where "javac -d out" leaves them), so the
+	// game also works when it is started from another folder.
+	private static File asset(String name) {
+		File direct = new File(name);
+		if (direct.exists()) {
+			return direct;
+		}
+		try {
+			File codeDir = new File(Poker.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			if (codeDir.isFile()) {
+				codeDir = codeDir.getParentFile(); // a jar: use its folder
+			}
+			File[] candidates = {new File(codeDir, name), new File(codeDir.getParentFile(), name)};
+			for (File candidate : candidates) {
+				if (candidate.exists()) {
+					return candidate;
+				}
+			}
+		} catch (URISyntaxException | NullPointerException e) {
+			// fall through and report the plain name
+		}
+		System.err.println("Missing file: " + name + " (run the game from the project folder)");
+		return direct;
+	}
+
 	private static Clip loadClip(String file) {
 		try {
-			AudioInputStream sound = AudioSystem.getAudioInputStream(new File(file));
+			AudioInputStream sound = AudioSystem.getAudioInputStream(asset(file));
 			Clip clip = AudioSystem.getClip();
 			clip.open(sound);
 			return clip;
@@ -98,10 +126,9 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 		Image cached = imageCache.get(key);
 		if (cached == null) {
 			try {
-				BufferedImage raw = ImageIO.read(new File(file));
+				BufferedImage raw = ImageIO.read(asset(file));
 				cached = raw.getScaledInstance(width, height, Image.SCALE_SMOOTH);
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (IOException | IllegalArgumentException e) {
 				cached = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 			}
 			imageCache.put(key, cached);
@@ -110,6 +137,20 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 	}
 
 	// ---------------------------------------------------------------- drawing
+
+	// Draws text at (x, y), shrinking the font if needed so it ends before maxRight.
+	private void drawFitted(Graphics g, String text, int x, int y, int maxRight) {
+		Font original = g.getFont();
+		Font font = original;
+		FontMetrics metrics = g.getFontMetrics(font);
+		while (metrics.stringWidth(text) > maxRight - x && font.getSize() > 10) {
+			font = font.deriveFont((float) (font.getSize() - 1));
+			metrics = g.getFontMetrics(font);
+		}
+		g.setFont(font);
+		g.drawString(text, x, y);
+		g.setFont(original);
+	}
 
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
@@ -233,7 +274,7 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 		}
 		g.setFont(ARIAL_BIG);
 		g.setColor(Color.BLACK);
-		g.drawString("Player: " + p.name, 50, 25);
+		drawFitted(g, "Player: " + p.name, 50, 25, 315);
 		g.drawString("Chips: " + p.chips, 325, 25);
 		if (!turn) {
 			g.drawString("Press Start Turn", 31, 548);
@@ -241,7 +282,7 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 		}
 
 		if (game.street == Game.RIVER) {
-			g.drawString("Hand: " + game.handDescription(p.seat), 500, 25);
+			drawFitted(g, "Hand: " + game.handDescription(p.seat), 180, 548, 780);
 		}
 		g.setColor(secondsLeft <= 5 ? Color.RED : Color.BLACK);
 		g.drawString("Time: " + secondsLeft, 31, 548);
@@ -287,7 +328,7 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 	private void drawHandResult(Graphics g) {
 		g.setFont(ARIAL_BIG);
 		g.setColor(Color.BLACK);
-		g.drawString(game.winningHandText, 160, 60);
+		drawFitted(g, game.winningHandText, 160, 60, 655);
 
 		g.setColor(Color.CYAN);
 		g.fillRect(0, 400, 150, 36);
@@ -295,16 +336,16 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 		if (game.gameOver) {
 			Player champion = game.players[game.gameWinner];
 			g.drawString("Main Menu", 9, 427);
-			g.drawString("Game Over! " + champion.name + " wins with " + champion.chips + " chips", 160, 427);
+			drawFitted(g, "Game Over! " + champion.name + " wins with " + champion.chips + " chips", 160, 427, 790);
 		} else {
 			g.drawString("Next Round", 9, 427);
-			g.drawString(game.winnerText, 160, 427);
+			drawFitted(g, game.winnerText, 160, 427, 790);
 		}
 
 		g.setFont(ARIAL_SMALL);
 		int y = 530;
 		for (String line : game.extraResultLines) {
-			g.drawString(line, 31, y);
+			drawFitted(g, line, 31, y, 790);
 			y += 18;
 		}
 		g.setFont(ARIAL_BIG);
@@ -315,7 +356,7 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 	private void startGame(int numPlayers) {
 		String[] names = new String[numPlayers];
 		for (int i = 0; i < numPlayers; i++) {
-			String name = JOptionPane.showInputDialog(this, "Enter player " + (i + 1) + "'s name:");
+			String name = askDialog("Enter player " + (i + 1) + "'s name:");
 			if (name == null || name.trim().isEmpty()) {
 				name = "Player " + (i + 1);
 			}
@@ -374,28 +415,47 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 		repaint();
 	}
 
+	// Every dialog goes through these two so the turn clock never runs out behind a
+	// dialog, and so the M key keeps working once the dialog closes.
+	private String askDialog(String prompt) {
+		boolean clockWasRunning = turnTimer.isRunning();
+		turnTimer.stop();
+		String answer = JOptionPane.showInputDialog(this, prompt);
+		if (clockWasRunning) {
+			turnTimer.start();
+		}
+		requestFocusInWindow();
+		return answer;
+	}
+
+	private void messageDialog(String message) {
+		boolean clockWasRunning = turnTimer.isRunning();
+		turnTimer.stop();
+		JOptionPane.showMessageDialog(this, message);
+		if (clockWasRunning) {
+			turnTimer.start();
+		}
+		requestFocusInWindow();
+	}
+
 	private void askCustomRaise() {
 		Player p = game.actingPlayer();
 		int min = Math.min(game.minRaiseTo(), game.maxTo(p));
 		int max = game.maxTo(p);
-		turnTimer.stop(); // do not let the clock run out while the dialog is open
-		String input = JOptionPane.showInputDialog(this, "Raise to (min " + min + ", max " + max + "):");
-		if (turn) {
-			turnTimer.start();
-		}
+		String input = askDialog("Raise to (min " + min + ", max " + max + "):");
 		if (input == null) {
 			return;
 		}
 		try {
 			int amount = Integer.parseInt(input.trim());
 			if (!game.isValidCustom(amount)) {
-				JOptionPane.showMessageDialog(this, "Invalid amount. Raise to between " + min + " and " + max + ".");
+				messageDialog("Invalid amount. Raise to between " + min + " and " + max + ".");
 				return;
 			}
 			customRaise = amount;
 			turnAction = Game.CUSTOM;
 		} catch (NumberFormatException e) {
-			JOptionPane.showMessageDialog(this, "Please enter a whole number.");
+			messageDialog("Please enter a whole number.");
 		}
 	}
 
@@ -490,7 +550,7 @@ public class Poker extends JPanel implements MouseListener, KeyListener {
 			}
 		} else if (inside(x, y, 31, 305, 572, 602)) {             // fold
 			if (game.callAmount(p) == 0) {
-				JOptionPane.showMessageDialog(this, "Nothing to call. Check or bet instead.");
+				messageDialog("Nothing to call. Check or bet instead.");
 			} else {
 				turnAction = Game.FOLD;
 				raise = false;

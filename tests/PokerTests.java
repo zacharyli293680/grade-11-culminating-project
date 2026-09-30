@@ -286,6 +286,37 @@ public class PokerTests {
 		Arrays.sort(chips);
 		check("odd chip goes to exactly one player", chips[0] == 1000 && chips[1] == 1000 && chips[2] == 1000 || (chips[2] - chips[0] == 1));
 		check("winner text lists all three", g.winnerText.contains("P0") && g.winnerText.contains("P1") && g.winnerText.contains("P2"));
+
+		// an odd pot: the folded small blind's 5 chips make it 45, chopped two ways
+		Game o = newGame(1000, 1000, 1000);
+		o.startHand(); // dealer 0, sb 1, bb 2
+		o.setCommunity(c(TEN, 0), c(JACK, 1), c(QUEEN, 2), c(KING, 3), c(ACE, 0));
+		o.setPlayerCards(0, c(TWO, 1), c(THREE, 1));
+		o.setPlayerCards(2, c(TWO, 3), c(THREE, 3));
+		o.applyAction(Game.CUSTOM, 20);    // seat 0 raises to 20
+		o.applyAction(Game.FOLD, 0);       // small blind folds
+		o.applyAction(Game.CHECK_CALL, 0); // big blind calls
+		while (!o.handOver) {
+			o.applyAction(Game.CHECK_CALL, 0);
+		}
+		checkEquals("odd chip goes to the first winner left of the dealer", 1003, o.players[2].chips);
+		checkEquals("other winner gets the smaller half", 1002, o.players[0].chips);
+		checkEquals("folded small blind lost 5", 995, o.players[1].chips);
+		checkEquals("chips conserved", 3000, totalChips(o));
+	}
+
+	static void unknownActionTests() {
+		Game g = newGame(1000, 1000, 1000);
+		g.startHand();
+		boolean rejected = false;
+		try {
+			g.applyAction(0, 0);
+		} catch (IllegalArgumentException e) {
+			rejected = true;
+		}
+		check("unknown action is rejected", rejected);
+		checkEquals("state untouched after a rejected action", 0, g.acting);
+		check("player has not acted", !g.players[0].acted);
 	}
 
 	static void eliminationTests() {
@@ -331,6 +362,7 @@ public class PokerTests {
 		sidePotTests();
 		foldWinTests();
 		splitPotTests();
+		unknownActionTests();
 		eliminationTests();
 		System.out.println(passed + " passed, " + failed + " failed");
 		if (failed > 0) {
