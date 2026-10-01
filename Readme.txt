@@ -21,29 +21,41 @@ Sarah
 - Merging of text based game with graphics
 - Readme.txt file
 
-Hints how to play / Skip levels
-- To play, you must first pres play in the main menu
-- To start your turn, you must press the start turn button which will reveal your cards, and allow you to start placing bets
-- To use the betting options (options in blue square), you must first press the bet/raise button
-- To submit the bets, you must press the finish end turn button which will submit the bets and hide your cards and wait for the next player to start their turn
-- To see the about/instructions page, at the menu click the top right corner (secret button)
-- To go back to game menu in the about/instructions page, click the top left corner
+How to play
+- Press Play, choose 2 to 8 players with the + and - buttons, click a box to type a name (blank names become Player 1, Player 2, ...), then press Start Game
+- Everyone shares one screen. The bottom panel says whose turn it is: pass the device to that player and press Start my turn (or Enter) to reveal their cards
+- Pick Fold, Check/Call or Bet/Raise. Bet/Raise opens Min, 2x, Pot, All In, a slider and an amount box. The line under the buttons previews what you will put in
+- Press Confirm (or Enter) to submit. The cards hide again and the panel asks for the next player
+- Each turn has a 30 second clock shown on the player's seat and in the panel; on zero the player checks if possible, otherwise folds
+- At the end of a hand the panel lists the winner, the winning hand and any side pots. Press Next Round to deal again
+- Back returns to the menu and discards the game. Exit and closing the window quit. Press M to mute the music and click sound
+- How to Play on the main menu shows the instructions and credits
+- The window can be resized; the table and seats rescale (minimum 800x600)
 
 How to compile and run (from this folder):
 - javac -d out *.java
 - java -cp out Poker
-- Tests: javac -d out *.java tests/PokerTests.java   then   java -cp out PokerTests
-- The game looks for its images and sounds in the working folder, then next to the compiled classes and one folder up, so it can also be started from elsewhere
+- Tests: javac -d out *.java tests/*.java   then   java -cp out PokerTests
+- Screen renders (no window needed): java -Djava.awt.headless=true -cp out RenderScreens render   writes PNGs of every screen into render/
+- The game looks for its sounds in the working folder, then next to the compiled classes and one folder up, so it can also be started from elsewhere
 
 Files:
-- Poker.java          screens, drawing, mouse and keyboard input, turn timer
+- Poker.java          window and host panel: current screen, sound, turn clock, mouse and keyboard routing
+- Screen.java         interface each screen implements
+- MenuScreen.java, SetupScreen.java, AboutScreen.java, TableScreen.java   the four screens, drawn entirely in code
+- TableLayout.java    seat, card, pot and panel geometry from the window size and player count
+- Theme.java          colours, fonts and drawing helpers
+- UiButton.java, UiTextField.java, UiSlider.java   code-drawn widgets (drawing and click areas share one rectangle)
+- CardPainter.java    draws card faces, backs and empty slots at any size
 - Game.java           all Texas Hold'em rules (blinds, action order, betting, all-ins, side pots, showdown, elimination)
 - HandEvaluator.java  best five-card hand out of seven, with full kicker comparison
 - Player.java         one seat's chips, bets, cards and status
-- tests/PokerTests.java  rule checks that run without the graphics
+- tests/PokerTests.java     rule checks that run without the graphics
+- tests/RenderScreens.java  paints every screen to PNG files for checking the layout
+- The old PNG and GIF images are no longer used by the game
 
 Rules implemented:
-- Blinds of 5/10 posted automatically; the dealer button (D), small blind (SB) and big blind (BB) are shown beside each player's chips and rotate every hand
+- Blinds of 5/10 posted automatically; the dealer button (D), small blind (SB) and big blind (BB) are marked on the seats and rotate every hand
 - Heads-up: the dealer posts the small blind and acts first preflop
 - Preflop action starts left of the big blind; the big blind gets the option to check or raise; postflop action starts left of the dealer
 - Minimum bet is the big blind; minimum raise is the size of the last raise; every bet is capped at the player's chips (an undersized all-in is allowed)
@@ -52,10 +64,6 @@ Rules implemented:
 - Split pots divide evenly and the odd chip goes to the first winner left of the dealer
 - Ties are broken by kickers (best five cards out of seven)
 - A player who loses all their chips is eliminated (OUT); the game ends when one player remains
-- 30 second turn timer once Start Turn is pressed; on zero the player checks if they can, otherwise folds
-- Back returns to the menu and discards the game; closing the window quits
-- Press M to mute or unmute the music and click sound
-
 Testing specific hands:
 - Game.setCommunity(...) and Game.setPlayerCards(...) force cards after startHand(); see tests/PokerTests.java for examples
 - Card numbers: rank = card % 13 (0 = two ... 12 = ace), suit = card / 13
@@ -78,6 +86,7 @@ Extra Functionalities:
 - Ability to enter names of players
 - Extra buttons (double, pot, exit, back)
 - Dealer button and blind markers, all-in and fold markers, turn timer, mute key
+- Code-drawn resizable interface: seats placed for the player count, pass-the-device panel between turns, raise slider and amount box, results panel with side pots
 
 Known bugs/errors
 - None known. The earlier straight flush and wheel straight errors are fixed by evaluating the best five cards together.
