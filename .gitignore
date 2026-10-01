@@ -1,2 +1,12 @@
+# build output
 out/
+dist/
+render/
 *.class
+
+# editors and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
